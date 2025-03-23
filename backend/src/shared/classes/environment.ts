@@ -53,4 +53,18 @@ export class Environment {
   @IsBoolean()
   @IsOptional()
   readonly LOGGER_TIMESTAMP?: boolean;
+
+  /**
+   * Stripe publishable key.
+   */
+  @IsString()
+  @IsOptional()
+  readonly STRIPE_PUBLIC_KEY?: string;
+
+  /**
+   * Stripe private key.
+   */
+  @IsString()
+  @IsOptional()
+  readonly STRIPE_PRIVATE_KEY?: string;
 }
