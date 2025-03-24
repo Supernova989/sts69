@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { Environment } from './shared/classes/environment';
 import { getEnvValidator } from './shared/func/get-env-validator';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { getEnvValidator } from './shared/func/get-env-validator';
     }),
     LoggerModule,
     DatabaseModule,
+    StripeModule,
     SeatsModule,
   ],
   providers: [AppService],
