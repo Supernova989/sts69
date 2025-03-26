@@ -2,7 +2,10 @@
   "name": "backend",
   "version": "0.0.2",
   "description": "REST API",
-  "author": "Max <ismak@eml.cc>",
+  "author": {
+    "name": "Maksim Isaev",
+    "email": "ismak@eml.cc"
+  },
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

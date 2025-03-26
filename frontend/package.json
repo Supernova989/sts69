@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "author": {
-    "name": "Maksim Isaev"
+    "name": "Maksim Isaev",
+    "email": "ismak@eml.cc"
   },
   "scripts": {
     "dev": "vite",
