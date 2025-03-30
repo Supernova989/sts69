@@ -55,10 +55,10 @@ jobs:
             --set-env-vars=STRIPE_CHECKOUT_SUCCESS_URL=${{ vars.STRIPE_CHECKOUT_SUCCESS_URL }} \
             --set-env-vars=STRIPE_CHECKOUT_EXPIRE_URL=${{ vars.STRIPE_CHECKOUT_EXPIRE_URL }} \
             --set-env-vars=LOGGER_GCP_FORMAT="true" \
+            --set-env-vars=STAGE=dev \
+            --set-env-vars=TASKS_SA_EMAIL=${{ secrets.GH_DEPLOYER_SA_EMAIL }} \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest 
-  
-  
 
   deploy-frontend:
     needs: auth
