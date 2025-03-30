@@ -10,8 +10,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build": "tsc -b && yarn copy",
-    "copy": "copyfiles -s package.json yarn.lock .npmrc -s ./dist",
     "lint": "eslint . --fix",
     "preview": "vite preview"
   },
