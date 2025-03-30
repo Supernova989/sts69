@@ -80,9 +80,9 @@ resource "google_secret_manager_secret_iam_member" "database_url_access" {
 }
 
 
-########################
+#######################################################
 # General-purpose GCS Buckets
-########################
+#######################################################
 
 # Frontend bucket (SPA)
 resource "google_storage_bucket" "frontend_bucket" {
@@ -131,9 +131,9 @@ resource "google_storage_bucket" "cloud_functions" {
   uniform_bucket_level_access = true
 }
 
-########################
+#######################################################
 # Cloud Run: Backend
-########################
+#######################################################
 
 resource "google_cloud_run_v2_service" "backend" {
   name     = "backend-service"
@@ -201,12 +201,12 @@ resource "google_cloud_run_service_iam_member" "backend_public" {
   member   = "allUsers"
 }
 
-########################
-# Cloud Function: cancelSession
-########################
+#######################################################
+# Cloud Function: cancel-stripe-session
+#######################################################
 
 # Source for the function
-resource "google_storage_bucket_object" "cancel_session_zip" {
+resource "google_storage_bucket_object" "cancel_stripe_session_zip" {
   name   = "empty-gcf-source.zip"
   bucket = google_storage_bucket.cloud_functions.name
   source = "empty-gcf-source.zip"
@@ -216,7 +216,7 @@ resource "google_storage_bucket_object" "cancel_session_zip" {
   ]
 }
 
-resource "google_cloudfunctions2_function" "cancel_session" {
+resource "google_cloudfunctions2_function" "cancel_stripe_session" {
   name      = "cancel-stripe-session"
   location  = var.region
 
@@ -255,7 +255,7 @@ resource "google_cloudfunctions2_function" "cancel_session" {
     source {
       storage_source {
         bucket = google_storage_bucket.cloud_functions.name
-        object = google_storage_bucket_object.cancel_session_zip.name
+        object = google_storage_bucket_object.cancel_stripe_session_zip.name
       }
     }
   }
@@ -264,7 +264,7 @@ resource "google_cloudfunctions2_function" "cancel_session" {
 resource "google_cloudfunctions_function_iam_member" "cancel_session_invoker" {
   project        = var.project_id
   region         = var.region
-  cloud_function = google_cloudfunctions2_function.cancel_session.name
+  cloud_function = google_cloudfunctions2_function.cancel_stripe_session.name
   role           = "roles/cloudfunctions.invoker"
   member         = "serviceAccount:${var.github_deployer_sa_email}"
 }

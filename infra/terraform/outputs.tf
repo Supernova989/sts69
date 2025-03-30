@@ -7,7 +7,7 @@ output "backend_url" {
 }
 
 output "cancel_session_url" {
-  value = google_cloudfunctions2_function.cancel_session.url
+  value = google_cloudfunctions2_function.cancel_stripe_session.url
 }
 
 output "cancel_checkout_sessions_queue" {
