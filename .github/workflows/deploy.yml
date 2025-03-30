@@ -51,6 +51,8 @@ jobs:
             --allow-unauthenticated \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest 
+  
+  
 
   deploy-frontend:
     needs: auth
@@ -92,25 +94,33 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: cloud-functions/cancel-stripe-session
+        run: yarn install
+
       - name: Build function
         working-directory: cloud-functions/cancel-stripe-session
         run: yarn build
 
-      - name: Deploy cancel-stripe-session function
+      - name: Copy package.json and yarn.lock
         working-directory: cloud-functions/cancel-stripe-session
         run: |
+          cp package.json dist/
+          cp yarn.lock dist/
+
+      - name: Deploy cancel-stripe-session function
+        run: |
           gcloud functions deploy cancel-stripe-session \
-            --source=cloud-functions/cancel-stripe-session/dist \
             --runtime=nodejs22 \
             --trigger-http \
             --region=${{ vars.GCP_REGION }} \
             --entry-point=handler \
             --project=${{ vars.GCP_PROJECT_ID }} \
+            --source=cloud-functions/cancel-stripe-session/dist \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest
-
-      - name: Copy file to dist/
-        working-directory: cloud-functions/cancel-stripe-session
-        run: |
-          cp package.json dist/
-          cp yarn.lock dist/
