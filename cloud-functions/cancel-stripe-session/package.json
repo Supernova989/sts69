@@ -2,6 +2,7 @@
   "name": "cancel-stripe-session",
   "version": "1.0.0",
   "description": "Cloud Function cancelling Stripe Checkout sessions",
+  "license": "MIT",
   "main": "index.js",
   "type": "module",
   "scripts": {
