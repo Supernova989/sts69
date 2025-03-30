@@ -49,6 +49,12 @@ jobs:
             --region=${{ vars.GCP_REGION }} \
             --project=${{ vars.GCP_PROJECT_ID }} \
             --allow-unauthenticated \
+            --set-env-vars=GCP_REGION=${{ vars.GCP_REGION }} \
+            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }} \
+            --set-env-vars=STRIPE_PUBLIC_KEY=${{ vars.STRIPE_PUBLIC_KEY }} \
+            --set-env-vars=STRIPE_CHECKOUT_SUCCESS_URL=${{ vars.STRIPE_CHECKOUT_SUCCESS_URL }} \
+            --set-env-vars=STRIPE_CHECKOUT_EXPIRE_URL=${{ vars.STRIPE_CHECKOUT_EXPIRE_URL }} \
+            --set-env-vars=LOGGER_GCP_FORMAT="true" \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest 
   
