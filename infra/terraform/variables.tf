@@ -9,28 +9,13 @@ variable "region" {
   description = "GCP region"
 }
 
-variable "frontend_bucket_name" {
+variable "github_deployer_sa_email" {
   type        = string
-  description = "Frontend GCS bucket name"
+  description = "Github deployer service account email"
 }
-
-variable "public_bucket_name" {
-  type        = string
-  description = "General-purpose public bucket"
-}
-
-variable "private_bucket_name" {
-  type        = string
-  description = "General-purpose private bucket"
-}
-
-# variable "backend_image" {
-#   type        = string
-#   description = "Docker image for Cloud Run backend (e.g. gcr.io/your-project/backend:latest)"
-# }
 
 variable "backend_stage" {
   type        = string
-  description = ""
-  default = "dev"
+  description = "Backend app stage"
+  default     = "dev"
 }

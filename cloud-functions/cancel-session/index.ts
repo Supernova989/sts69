@@ -2,8 +2,8 @@ import { http } from '@google-cloud/functions-framework';
 import { Request, Response } from 'express';
 import { Stripe } from 'stripe';
 
-http('cancelStripeSession', async (req: Request, res: Response) => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+http('handler', async (req: Request, res: Response) => {
+  const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!, {
     apiVersion: '2025-02-24.acacia'
   });
 

@@ -1,5 +1,0 @@
-project_id            = "your-project-id"
-frontend_bucket_name  = "my-frontend-bucket"
-public_bucket_name    = "my-pu"
-private_bucket_name   = "my-private-bucket"
-# backend_image         = "europe-west3-docker.pkg.dev/st/backend/backend-service:latest"

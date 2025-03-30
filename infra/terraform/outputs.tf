@@ -1,9 +1,5 @@
-output "service_account_email" {
-  value = google_service_account.github_ci.email
-}
-
 output "frontend_url" {
-  value = "https://storage.googleapis.com/${google_storage_bucket.frontend.name}/index.html"
+  value = "https://storage.googleapis.com/${google_storage_bucket.frontend_bucket.name}/index.html"
 }
 
 output "backend_url" {
@@ -11,7 +7,7 @@ output "backend_url" {
 }
 
 output "cancel_session_url" {
-  value = google_cloudfunctions_function.cancel_session.https_trigger_url
+  value = google_cloudfunctions2_function.cancel_session.url
 }
 
 output "cancel_checkout_sessions_queue" {

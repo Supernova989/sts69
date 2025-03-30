@@ -10,5 +10,5 @@ export interface CreateTaskProps<B extends object> {
 }
 
 export enum TaskQueueName {
-  CANCEL_STRIPE_CHECKOUT_SESSIONS = 'cancel-stripe-checkout-sessions',
+  CANCEL_STRIPE_CHECKOUT_SESSIONS = 'cancel-stripe-checkout-session',
 }

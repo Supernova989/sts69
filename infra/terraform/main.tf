@@ -6,41 +6,87 @@ terraform {
     }
   }
 }
+
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
-########################
-# GitHub CI Service Account
-########################
-
-resource "google_service_account" "github_ci" {
-  account_id   = "github-deployer"
-  display_name = "GitHub CI/CD deployer"
+locals {
+  required_apis = [
+    "cloudresourcemanager.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "run.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudtasks.googleapis.com",
+    "secretmanager.googleapis.com",
+    "compute.googleapis.com",
+  ]
 }
 
-resource "google_project_iam_member" "github_ci_roles" {
-  for_each = toset([
-    "roles/run.admin",
-    "roles/storage.admin",
-    "roles/cloudfunctions.developer",
-    "roles/artifactregistry.writer",
-    "roles/viewer",
-    "roles/cloudtasks.admin"
-  ])
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.github_ci.email}"
+resource "google_project_service" "enabled" {
+  for_each           = toset(local.required_apis)
+  project            = var.project_id
+  service            = each.key
+  disable_on_destroy = false
 }
+
+#######################################################
+# Secret: stripe secret key
+#######################################################
+resource "google_secret_manager_secret" "stripe_private_key" {
+  depends_on = [google_project_service.enabled]
+  secret_id = "STRIPE_PRIVATE_KEY"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "initial_stripe_key" {
+  depends_on = [google_project_service.enabled]
+  secret      = google_secret_manager_secret.stripe_private_key.id
+  secret_data = "dummy-value"
+}
+
+resource "google_secret_manager_secret_iam_member" "stripe_secret_access" {
+  depends_on = [google_project_service.enabled]
+  secret_id = google_secret_manager_secret.stripe_private_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.github_deployer_sa_email}"
+}
+
+#######################################################
+# Secret: database url
+#######################################################
+resource "google_secret_manager_secret" "database_url" {
+  depends_on = [google_project_service.enabled]
+  secret_id = "DATABASE_URL"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "initial_database_url" {
+  depends_on = [google_project_service.enabled]
+  secret      = google_secret_manager_secret.database_url.id
+  secret_data = "dummy-value"
+}
+
+resource "google_secret_manager_secret_iam_member" "database_url_access" {
+  depends_on = [google_project_service.enabled]
+  secret_id = google_secret_manager_secret.database_url.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.github_deployer_sa_email}"
+}
+
 
 ########################
 # General-purpose GCS Buckets
 ########################
 
 # Frontend bucket (SPA)
-resource "google_storage_bucket" "frontend" {
-  name                        = var.frontend_bucket_name
+resource "google_storage_bucket" "frontend_bucket" {
+  name                        = "${var.project_id}-frontend"
   location                    = var.region
   uniform_bucket_level_access = true
 
@@ -52,14 +98,14 @@ resource "google_storage_bucket" "frontend" {
 
 # Make the frontend be available publicly
 resource "google_storage_bucket_iam_member" "frontend_public_read" {
-  bucket = google_storage_bucket.frontend.name
+  bucket = google_storage_bucket.frontend_bucket.name
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
 
 # Public general-purpose bucket
 resource "google_storage_bucket" "public_assets" {
-  name     = var.public_bucket_name
+  name     = "${var.project_id}-public"
   location = var.region
   uniform_bucket_level_access = true
 }
@@ -73,7 +119,7 @@ resource "google_storage_bucket_iam_member" "public_assets_read" {
 
 # Private general-purpose bucket
 resource "google_storage_bucket" "private_assets" {
-  name     = var.private_bucket_name
+  name     = "${var.project_id}-private"
   location = var.region
   uniform_bucket_level_access = true
 }
@@ -93,7 +139,15 @@ resource "google_cloud_run_v2_service" "backend" {
   name     = "backend-service"
   location = var.region
 
+  depends_on = [
+    google_project_service.enabled,
+    google_secret_manager_secret_version.initial_database_url,
+    google_secret_manager_secret_version.initial_stripe_key
+  ]
+
   template {
+    service_account = var.github_deployer_sa_email
+
     scaling {
       max_instance_count = 2
     }
@@ -123,7 +177,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name = "TASKS_SA_EMAIL"
-        value = google_service_account.github_ci.email
+        value = var.github_deployer_sa_email
       }
 
       env {
@@ -131,12 +185,11 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.backend_stage
       }
     }
-    service_account_name = google_service_account.github_ci.email
   }
 
   traffic {
-    percent         = 100
-    latest_revision = true
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
 }
 
@@ -154,36 +207,66 @@ resource "google_cloud_run_service_iam_member" "backend_public" {
 
 # Source for the function
 resource "google_storage_bucket_object" "cancel_session_zip" {
-  name   = "cancel-session/index.zip"
+  name   = "empty-gcf-source.zip"
   bucket = google_storage_bucket.cloud_functions.name
-  source = "${path.module}/../../cloud-functions/cancel-session/index.zip"
+  source = "empty-gcf-source.zip"
+
+  depends_on = [
+    google_storage_bucket.cloud_functions
+  ]
 }
 
-resource "google_cloudfunctions_function" "cancel_session" {
-  name        = "cancelSession"
-  runtime     = "nodejs22"
-  region      = var.region
-  source_archive_bucket = google_storage_bucket.cloud_functions.name
-  source_archive_object = google_storage_bucket_object.cancel_session_zip.name
-  entry_point = "cancelStripeSession"
-  trigger_http = true
-  available_memory_mb = 256
-  service_account_email = google_service_account.github_ci.email
+resource "google_cloudfunctions2_function" "cancel_session" {
+  name      = "cancel-stripe-session"
+  location  = var.region
 
-  secret_environment_variables {
-    key    = "STRIPE_SECRET_KEY"
-    project_id = var.project_id
-    secret = google_secret_manager_secret.stripe_private_key.secret_id
-    version = "latest"
+  depends_on = [
+    google_project_service.enabled,
+    google_storage_bucket.cloud_functions,
+    google_secret_manager_secret_version.initial_database_url,
+    google_secret_manager_secret_version.initial_stripe_key
+  ]
+
+  service_config {
+    service_account_email   = var.github_deployer_sa_email
+    max_instance_count      = 3
+    available_memory        = "256M"
+    timeout_seconds         = 60
+
+    secret_environment_variables {
+      key                   = "DATABASE_URL"
+      project_id            = var.project_id
+      secret                = google_secret_manager_secret.database_url.secret_id
+      version               = "latest"
+    }
+
+    secret_environment_variables {
+      key                   = "STRIPE_PRIVATE_KEY"
+      project_id            = var.project_id
+      secret                = google_secret_manager_secret.stripe_private_key.secret_id
+      version               = "latest"
+    }
+  }
+
+  build_config {
+    runtime = "nodejs22"
+    entry_point = "handler"
+
+    source {
+      storage_source {
+        bucket = google_storage_bucket.cloud_functions.name
+        object = google_storage_bucket_object.cancel_session_zip.name
+      }
+    }
   }
 }
 
 resource "google_cloudfunctions_function_iam_member" "cancel_session_invoker" {
   project        = var.project_id
   region         = var.region
-  cloud_function = google_cloudfunctions_function.cancel_session.name
+  cloud_function = google_cloudfunctions2_function.cancel_session.name
   role           = "roles/cloudfunctions.invoker"
-  member         = "serviceAccount:${google_service_account.github_ci.email}"
+  member         = "serviceAccount:${var.github_deployer_sa_email}"
 }
 
 
@@ -191,8 +274,10 @@ resource "google_cloudfunctions_function_iam_member" "cancel_session_invoker" {
 # Cloud Task Queue
 #######################################################
 resource "google_cloud_tasks_queue" "cancel_checkout_sessions" {
-  name  = "cancel-stripe-checkout-sessions"
+  name  = "cancel-stripe-checkout-session"
   location = var.region
+
+  depends_on = [google_project_service.enabled]
 
   rate_limits {
     max_dispatches_per_second = 5
@@ -205,46 +290,4 @@ resource "google_cloud_tasks_queue" "cancel_checkout_sessions" {
     min_backoff        = "1s"
     max_backoff        = "10s"
   }
-}
-
-#######################################################
-# Secret: stripe secret key
-#######################################################
-resource "google_secret_manager_secret" "stripe_private_key" {
-  secret_id = "STRIPE_SECRET_KEY"
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "initial_stripe_key" {
-  secret      = google_secret_manager_secret.stripe_private_key.id
-  secret_data = "dummy-value"
-}
-
-resource "google_secret_manager_secret_iam_member" "stripe_secret_access" {
-  secret_id = google_secret_manager_secret.stripe_private_key.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.github_ci.email}"
-}
-
-#######################################################
-# Secret: database url
-#######################################################
-resource "google_secret_manager_secret" "database_url" {
-  secret_id = "DATABASE_URL"
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "initial_database_url" {
-  secret      = google_secret_manager_secret.database_url.id
-  secret_data = "dummy-value"
-}
-
-resource "google_secret_manager_secret_iam_member" "database_url_access" {
-  secret_id = google_secret_manager_secret.database_url.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.github_ci.email}"
 }
