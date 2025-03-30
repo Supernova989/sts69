@@ -3,15 +3,19 @@
   "version": "1.0.0",
   "description": "Cloud Function cancelling Stripe Checkout sessions",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "functions-framework --target=handler"
+    "build": "tsc"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "3.5.1",
     "stripe": "17.7.0"
   },
+  "devDependencies": {
+    "typescript": "5.3.3",
+    "@types/node": "20.8.0"
+  },
   "engines": {
     "node": "22.x"
-  },
-  "type": "module"
+  }
 }

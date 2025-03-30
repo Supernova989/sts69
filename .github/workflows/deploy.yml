@@ -41,6 +41,17 @@ jobs:
           docker build -t $IMAGE .
           docker push $IMAGE
 
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy backend-service \
+            --image=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/backend-service:latest \
+            --platform=managed \
+            --region=${{ vars.GCP_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --allow-unauthenticated \
+            --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
+            --update-secrets=DATABASE_URL=DATABASE_URL:latest 
+
   deploy-frontend:
     needs: auth
     runs-on: ubuntu-latest
@@ -81,10 +92,15 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      - name: Build function
+        working-directory: cloud-functions/cancel-stripe-session
+        run: yarn build
+
       - name: Deploy cancel-stripe-session function
         working-directory: cloud-functions/cancel-stripe-session
         run: |
           gcloud functions deploy cancel-stripe-session \
+            --source=cloud-functions/cancel-stripe-session/dist \
             --runtime=nodejs22 \
             --trigger-http \
             --region=${{ vars.GCP_REGION }} \
@@ -92,3 +108,9 @@ jobs:
             --project=${{ vars.GCP_PROJECT_ID }} \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest
+
+      - name: Copy file to dist/
+        working-directory: cloud-functions/cancel-stripe-session
+        run: |
+          cp package.json dist/
+          cp yarn.lock dist/
