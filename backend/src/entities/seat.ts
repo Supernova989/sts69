@@ -10,6 +10,9 @@ export class Seat {
   @Column()
   label: string; // e.g., "A1", "B2"
 
+  @Column()
+  row: string;
+
   @Column({ type: 'enum', default: SeatStatus.AVAILABLE, enum: SeatStatus })
   status: SeatStatus;
 

@@ -25,11 +25,16 @@ export class Environment {
   readonly DATABASE_URL: string;
 
   /**
-   * Service Account for Google Cloud Storage.
+   * Location of GCP project.
    */
   @IsString()
-  @IsOptional()
-  readonly STORAGE_CREDENTIALS?: string;
+  readonly GCP_REGION: string;
+
+  /**
+   * Identifier of GCP project.
+   */
+  @IsString()
+  readonly GCP_PROJECT_ID: string;
 
   /**
    * Defines the maximum log severity.
@@ -58,13 +63,29 @@ export class Environment {
    * Stripe publishable key.
    */
   @IsString()
-  @IsOptional()
-  readonly STRIPE_PUBLIC_KEY?: string;
+  readonly STRIPE_PUBLIC_KEY: string;
 
   /**
    * Stripe private key.
    */
   @IsString()
-  @IsOptional()
-  readonly STRIPE_PRIVATE_KEY?: string;
+  readonly STRIPE_PRIVATE_KEY: string;
+
+  /**
+   * Stripe checkout success URL.
+   */
+  @IsString()
+  readonly STRIPE_CHECKOUT_SUCCESS_URL: string;
+
+  /**
+   * URL of the endpoint expiring Stripe checkout sessions.
+   */
+  @IsString()
+  readonly STRIPE_CHECKOUT_EXPIRE_URL: string;
+
+  /**
+   * Service account email for Cloud Tasks.
+   */
+  @IsString()
+  readonly TASKS_SA_EMAIL: string;
 }

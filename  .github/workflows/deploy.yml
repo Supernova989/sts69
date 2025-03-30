@@ -1,0 +1,83 @@
+name: Deploy App
+
+on:
+  push:
+    branches:
+      - deploy
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  GCS_BUCKET: ${{ secrets.GCS_BUCKET_NAME }}
+
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    outputs:
+      authenticated: ${{ steps.authenticated.outcome }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Authenticate with GCP
+        id: authenticated
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+  deploy-backend:
+    needs: auth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate Docker with GCP
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
+
+      - name: Build and Push Docker image
+        working-directory: backend
+        run: |
+          IMAGE=${REGION}-docker.pkg.dev/$PROJECT_ID/backend/backend-service:latest
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+  deploy-frontend:
+    needs: auth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install & build frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          yarn build
+
+      - name: Upload to GCS
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          path: frontend/dist
+          destination: ${{ env.GCS_BUCKET }}
+          parent: false
+
+  deploy-cloud-functions:
+    needs: auth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy cancelSession function
+        working-directory: cloud-functions/cancel-session
+        run: |
+          gcloud functions deploy cancelSession \
+            --runtime=nodejs18 \
+            --trigger-http \
+            --region=$REGION \
+            --entry-point=handler \
+            --project=$PROJECT_ID \
+            --env-vars STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},BUCKET_NAME=your-private-bucket

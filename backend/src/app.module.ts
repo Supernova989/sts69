@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { SeatsModule } from './api/seats/seats.module';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { GoogleCloudPlatformModule } from './gcp/gcp.module';
 import { LoggerModule } from './logger/logger.module';
 import { Environment } from './shared/classes/environment';
 import { getEnvValidator } from './shared/func/get-env-validator';
@@ -23,6 +24,7 @@ import { StripeModule } from './stripe/stripe.module';
     LoggerModule,
     DatabaseModule,
     StripeModule,
+    GoogleCloudPlatformModule,
     SeatsModule,
   ],
   providers: [AppService],

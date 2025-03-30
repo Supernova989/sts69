@@ -15,6 +15,11 @@ const customLevels: Record<LoggerLevel, number> = {
   verbose: 6,
 };
 
+type MetaObject = {
+  src?: string;
+  [s: string]: any;
+};
+
 @Injectable()
 export class LoggerService {
   private logger?: winston.Logger;
@@ -29,20 +34,40 @@ export class LoggerService {
     this.logger = winston.createLogger(options);
   }
 
-  log(message: any, ...meta: any[]): void {
-    this.logger?.info(message, ...meta);
+  // log(message: any, ...meta: any[]): void {
+  //   this.logger?.info(message, ...meta);
+  // }
+
+  log(message: any, args?: any[], metadata?: MetaObject): void {
+    this.logger?.info({
+      message,
+      metadata,
+      splat: args,
+    });
   }
 
-  warn(message: any, ...meta: any[]): void {
-    this.logger?.warn(message, ...meta);
+  warn(message: any, args?: any[], metadata?: MetaObject): void {
+    this.logger?.warn({
+      message,
+      metadata,
+      splat: args,
+    });
   }
 
-  error(message: any, ...meta: any[]): void {
-    this.logger?.error(message, ...meta);
+  error(message: any, args?: any[], metadata?: MetaObject): void {
+    this.logger?.error({
+      message,
+      metadata,
+      splat: args,
+    });
   }
 
-  debug(message: any, ...meta: any[]): void {
-    this.logger?.debug(message, ...meta);
+  debug(message: any, args?: any[], metadata?: MetaObject): void {
+    this.logger?.debug({
+      message,
+      metadata,
+      splat: args,
+    });
   }
 
   verbose(message: string, ...meta: any[]): void {
@@ -83,14 +108,14 @@ export class LoggerService {
       level: toLower(this.configService.get('LOGGER_LEVEL')),
       transports: [new winston.transports.Console()],
       format: winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
         winston.format.splat(),
-        winston.format.printf(({ message, level, timestamp }) => {
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+        winston.format.printf(({ message, level, timestamp, metadata }) => {
           if (this.configService.get<boolean>('LOGGER_GCP_FORMAT')) {
             return JSON.stringify({
               severity: this.getSeverity(level as LoggerLevel),
               message,
-              additionalData: {},
+              additionalData: metadata,
             });
           }
 
