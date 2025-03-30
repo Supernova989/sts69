@@ -16,10 +16,6 @@ async function bootstrap() {
   const stripeService = app.get(StripeService);
   stripeService.enable();
 
-  // GCP - Tasks
-  const gcpTaskService = app.get(GoogleCloudTaskService);
-  gcpTaskService.createQueue(TaskQueueName.CANCEL_STRIPE_CHECKOUT_SESSIONS);
-
   await app.listen(process.env.PORT ?? 3000);
 
   logger.log('App is running');

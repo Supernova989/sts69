@@ -78,6 +78,8 @@ jobs:
 
       - name: Install & build frontend
         working-directory: frontend
+        env:
+          VITE_BASE_URL: ${{ vars.FRONTEND_BASE_URL }}
         run: |
           yarn install
           yarn build

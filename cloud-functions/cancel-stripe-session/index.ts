@@ -2,11 +2,11 @@ import { http } from '@google-cloud/functions-framework';
 import { Request, Response } from 'express';
 import { Stripe } from 'stripe';
 
-http('handler', async (req: Request, res: Response) => {
-  const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!, {
-    apiVersion: '2025-02-24.acacia'
-  });
+const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!, {
+  apiVersion: '2025-02-24.acacia'
+});
 
+http('handler', async (req: Request, res: Response) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

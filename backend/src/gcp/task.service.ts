@@ -17,58 +17,20 @@ export class GoogleCloudTaskService extends BaseGcpService {
     super();
   }
 
-  async createQueue(name: string) {
-    const client = new CloudTasksClient();
-    const project = this.configService.get('GCP_PROJECT_ID');
-    const location = this.configService.get('GCP_REGION');
-
-    const parent = client.locationPath(project, location);
-    const queuePath = client.queuePath(project, location, name);
-
-    const request = {
-      parent,
-      queue: {
-        name: queuePath,
-        rateLimits: {
-          maxDispatchesPerSecond: 5,
-          maxConcurrentDispatches: 10,
-        },
-        retryConfig: {
-          maxAttempts: 10,
-          maxRetryDuration: { seconds: 10 },
-          minBackoff: { seconds: 1 },
-          maxBackoff: { seconds: 10 },
-        },
-      },
-    };
-
-    try {
-      return await client.createQueue(request);
-    } catch (error) {
-      if (error.code === 6) {
-        // ignore if already exists
-        return;
-      }
-      this.logger.error('Failed to create task queue - %s', [error.message], {
-        src: 'GoogleCloudTaskService::createQueue',
-      });
-    }
-  }
-
   /**
    * Schedules a task to expire a Stripe session. Used for session lifetime below 30 minutes.
    */
-  async scheduleStripeSessionExpiration(sessionId: string) {
+  async scheduleStripeSessionExpiration(sessionId: string, scheduleAt: number) {
     return this.createTask<{ sessionId: string }>({
       httpMethod: 'POST',
-      queueName: TaskQueueName.CANCEL_STRIPE_CHECKOUT_SESSIONS,
+      queueName: TaskQueueName.CANCEL_STRIPE_CHECKOUT_SESSION,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${await this.getAccessToken()}`,
       },
       body: { sessionId },
-      url: '',
-      scheduleAt: 0,
+      url: this.configService.get('STRIPE_CHECKOUT_EXPIRE_URL'),
+      scheduleAt,
     });
   }
 
