@@ -308,11 +308,11 @@ resource "google_compute_url_map" "frontend_url_map" {
 
   default_route_action {
     cors_policy {
-      allow_origin      = ["*"]
-      allow_methods     = ["GET", "HEAD", "OPTIONS"]
-      allow_headers     = ["*"]
-      max_age           = 3600
-      expose_headers    = ["Content-Length", "Content-Type"]
+      allow_origins         = ["*"]
+      allow_methods         = ["GET", "HEAD", "OPTIONS"]
+      allow_headers         = ["*"]
+      max_age               = 3600
+      expose_headers        = ["Content-Length", "Content-Type"]
     }
   }
 
