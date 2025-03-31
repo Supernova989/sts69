@@ -351,7 +351,6 @@ resource "google_compute_global_forwarding_rule" "https_forwarding" {
   name                  = "ui-https-forwarding"
   target                = google_compute_target_https_proxy.https_proxy.id
   port_range            = "443"
-  load_balancing_scheme = "EXTERNAL"
   ip_protocol           = "TCP"
   ip_address            = google_compute_global_address.frontend_ip.address
 }
