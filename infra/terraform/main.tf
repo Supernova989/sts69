@@ -306,6 +306,10 @@ resource "google_compute_url_map" "frontend_url_map" {
   name            = "frontend-url-map"
   default_service = google_compute_backend_bucket.frontend_backend_bucket.id
 
+  host_rule {
+    hosts        = [var.frontend_domain_name] # e.g., ["spa.example.com"]
+    path_matcher = "spa-matcher"
+  }
 
   path_matcher {
     name            = "spa-matcher"
