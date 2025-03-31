@@ -92,7 +92,7 @@ resource "google_storage_bucket" "frontend_bucket" {
 
   website {
     main_page_suffix = "index.html"
-    not_found_page   = "404.html"
+    not_found_page   = "index.html"
   }
 }
 
