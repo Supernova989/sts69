@@ -140,9 +140,7 @@ resource "google_cloud_run_v2_service" "backend" {
   location = var.region
 
   depends_on = [
-    google_project_service.enabled,
-    google_secret_manager_secret_version.initial_database_url,
-    google_secret_manager_secret_version.initial_stripe_key
+    google_project_service.enabled
   ]
 
   template {
@@ -221,10 +219,7 @@ resource "google_cloudfunctions2_function" "cancel_stripe_session" {
   location  = var.region
 
   depends_on = [
-    google_project_service.enabled,
-    google_storage_bucket.cloud_functions,
-    google_secret_manager_secret_version.initial_database_url,
-    google_secret_manager_secret_version.initial_stripe_key
+    google_project_service.enabled
   ]
 
   service_config {
