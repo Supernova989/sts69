@@ -296,7 +296,7 @@ resource "google_cloud_tasks_queue" "cancel_checkout_sessions" {
 # Load Balancing + CDN
 #######################################################
 
-resource "google_compute_backend_bucket" "frontend_backend" {
+resource "google_compute_backend_bucket" "frontend_backend_bucket" {
   name        = "frontend-bucket-backend"
   bucket_name = google_storage_bucket.frontend_bucket.name
   enable_cdn  = true
@@ -304,7 +304,7 @@ resource "google_compute_backend_bucket" "frontend_backend" {
 
 resource "google_compute_url_map" "frontend_url_map" {
   name            = "frontend-url-map"
-  default_service = google_compute_backend_bucket.frontend_backend.id
+  default_service = google_compute_backend_bucket.frontend_backend_bucket.id
 
   default_route_action {
     cors_policy {
@@ -318,11 +318,11 @@ resource "google_compute_url_map" "frontend_url_map" {
 
   path_matcher {
     name            = "spa-matcher"
-    default_service = google_compute_backend_bucket.frontend_backend.id
+    default_service = google_compute_backend_bucket.frontend_backend_bucket.id
 
     path_rule {
       paths   = ["/*"]
-      service = google_compute_backend_bucket.frontend_backend.id
+      service = google_compute_backend_bucket.frontend_backend_bucket.id
     }
   }
 }
