@@ -19,3 +19,8 @@ variable "backend_stage" {
   description = "Backend app stage"
   default     = "dev"
 }
+
+variable "frontend_domain_name" {
+  type        = string
+  description = "Frontend domain name"
+}

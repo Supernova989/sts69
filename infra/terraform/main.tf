@@ -326,3 +326,32 @@ resource "google_compute_url_map" "frontend_url_map" {
     }
   }
 }
+
+# 4. Managed SSL for Custom Domain
+resource "google_compute_managed_ssl_certificate" "ssl_cert" {
+  name = "spa-ssl-cert"
+  managed {
+    domains = [var.frontend_domain_name]
+  }
+}
+
+resource "google_compute_global_address" "frontend_ip" {
+  name = "frontend-ip"
+}
+
+# 6. HTTPS Proxy
+resource "google_compute_target_https_proxy" "https_proxy" {
+  name             = "ui-https-proxy"
+  url_map          = google_compute_url_map.frontend_url_map.id
+  ssl_certificates = [google_compute_managed_ssl_certificate.ssl_cert.id]
+}
+
+# 7. Forwarding Rule
+resource "google_compute_global_forwarding_rule" "https_forwarding" {
+  name                  = "ui-https-forwarding"
+  target                = google_compute_target_https_proxy.https_proxy.id
+  port_range            = "443"
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
+  ip_address            = google_compute_global_address.frontend_ip.address
+}
