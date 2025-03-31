@@ -81,7 +81,7 @@ resource "google_secret_manager_secret_iam_member" "database_url_access" {
 
 
 #######################################################
-# General-purpose GCS Buckets
+# GCS Buckets
 #######################################################
 
 # Frontend bucket (SPA)
@@ -289,5 +289,40 @@ resource "google_cloud_tasks_queue" "cancel_checkout_sessions" {
     max_retry_duration = "10s"
     min_backoff        = "1s"
     max_backoff        = "10s"
+  }
+}
+
+#######################################################
+# Load Balancing + CDN
+#######################################################
+
+resource "google_compute_backend_bucket" "frontend_backend" {
+  name        = "frontend-bucket-backend"
+  bucket_name = google_storage_bucket.frontend_bucket.name
+  enable_cdn  = true
+}
+
+resource "google_compute_url_map" "frontend_url_map" {
+  name            = "frontend-url-map"
+  default_service = google_compute_backend_bucket.frontend_backend.id
+
+  default_route_action {
+    cors_policy {
+      allow_origin      = ["*"]
+      allow_methods     = ["GET", "HEAD", "OPTIONS"]
+      allow_headers     = ["*"]
+      max_age           = 3600
+      expose_headers    = ["Content-Length", "Content-Type"]
+    }
+  }
+
+  path_matcher {
+    name            = "spa-matcher"
+    default_service = google_compute_backend_bucket.frontend_backend.id
+
+    path_rule {
+      paths   = ["/*"]
+      service = google_compute_backend_bucket.frontend_backend.id
+    }
   }
 }
