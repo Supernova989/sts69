@@ -39,4 +39,4 @@ jobs:
           TF_VAR_public_bucket_name: ${{ vars.PUBLIC_BUCKET }}
           TF_VAR_private_bucket_name: ${{ vars.PRIVATE_BUCKET }}
           TF_VAR_github_deployer_sa_email: ${{ secrets.GH_DEPLOYER_SA_EMAIL }}
-          TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
+          TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
