@@ -306,15 +306,6 @@ resource "google_compute_url_map" "frontend_url_map" {
   name            = "frontend-url-map"
   default_service = google_compute_backend_bucket.frontend_backend_bucket.id
 
-  default_route_action {
-    cors_policy {
-      allow_origins         = ["*"]
-      allow_methods         = ["GET", "HEAD", "OPTIONS"]
-      allow_headers         = ["*"]
-      max_age               = 3600
-      expose_headers        = ["Content-Length", "Content-Type"]
-    }
-  }
 
   path_matcher {
     name            = "spa-matcher"
