@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { UserType } from '../shared/types/user-type';
+import { UserRole } from '../shared/types/user-role';
 
 @Entity({ name: 'users' })
 export class User {
@@ -18,8 +18,8 @@ export class User {
   @Column({ type: 'varchar', select: false })
   password: string;
 
-  @Column({ type: 'enum', enum: UserType })
-  type: UserType;
+  @Column({ type: 'enum', enum: UserRole })
+  role: UserRole;
 
   @Column({ type: 'boolean', default: false })
   active: boolean;

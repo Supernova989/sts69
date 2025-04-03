@@ -19,6 +19,18 @@ export class Environment {
   readonly NODE_ENV?: string;
 
   /**
+   * JWT secret.
+   */
+  @IsString()
+  readonly JWT_SECRET: string;
+
+  /**
+   * Issuer for JWT.
+   */
+  @IsString()
+  readonly JWT_ISSUER: string;
+
+  /**
    * Connection string for PostgreSQL.
    */
   @IsString()
