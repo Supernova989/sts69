@@ -4,7 +4,7 @@ import { UserType } from '../shared/types/user-type';
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: number;
+  id: string;
 
   @Column({ type: 'varchar', unique: true })
   email: string;
