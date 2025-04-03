@@ -81,7 +81,13 @@ export class Environment {
    * URL of the endpoint expiring Stripe checkout sessions.
    */
   @IsString()
-  readonly STRIPE_CHECKOUT_EXPIRE_URL: string;
+  readonly EXPIRE_STRIPE_CHECKOUT_TASK_URL: string;
+
+  /**
+   * URL of the endpoint expiring Stripe checkout sessions.
+   */
+  @IsString()
+  readonly SEND_EMAIL_TASK_URL: string;
 
   /**
    * Service account email for Cloud Tasks.

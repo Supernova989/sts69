@@ -19,7 +19,9 @@ export const getEnvValidator = <T extends object>(cls: ClassConstructor<T>) => {
         });
         return text;
       });
-      throw new Error([bgRB('Make sure all the ENV vars are provided and valid!'), output.join('\n')].join('\n'));
+      throw new Error(
+        [bgRB('Make sure all the ENV vars are provided and valid!'), output.join('\n')].join('\n'),
+      );
     }
     return { ...validatedConfig };
   };

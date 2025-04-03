@@ -4,7 +4,13 @@ import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../logger/logger.service';
 import { Environment } from '../shared/classes/environment';
 import { BaseGcpService } from './shared/base-gcp-service';
-import { CreateTaskProps, TaskQueueName } from './typings';
+import {
+  BaseCloudTaskInput,
+  CreateTaskInput,
+  ScheduleMailInput,
+  ScheduleStripeSessionExpirationInput,
+  TaskQueueName,
+} from './typings';
 
 @Injectable()
 export class GoogleCloudTaskService extends BaseGcpService {
@@ -18,10 +24,31 @@ export class GoogleCloudTaskService extends BaseGcpService {
   }
 
   /**
-   * Schedules a task to expire a Stripe session. Used for session lifetime below 30 minutes.
+   * Schedules a task to send an email.
    */
-  async scheduleStripeSessionExpiration(sessionId: string, scheduleAt: number) {
-    return this.createTask<{ sessionId: string }>({
+  async scheduleMail({ scheduleAt, ...rest }: ScheduleMailInput & BaseCloudTaskInput) {
+    return this.createTask({
+      httpMethod: 'POST',
+      queueName: TaskQueueName.SEND_EMAIL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${await this.getAccessToken()}`,
+      },
+      body: { ...rest },
+      url: this.configService.get('SEND_EMAIL_TASK_URL'),
+      scheduleAt,
+    });
+  }
+
+  /**
+   * Schedules a task to expire a Stripe Checkout session.
+   * Intended for sessions with a lifetime shorter than 30 minutes.
+   */
+  async scheduleStripeSessionExpiration({
+    scheduleAt,
+    sessionId,
+  }: ScheduleStripeSessionExpirationInput & BaseCloudTaskInput) {
+    return this.createTask({
       httpMethod: 'POST',
       queueName: TaskQueueName.CANCEL_STRIPE_CHECKOUT_SESSION,
       headers: {
@@ -29,7 +56,7 @@ export class GoogleCloudTaskService extends BaseGcpService {
         Authorization: `Bearer ${await this.getAccessToken()}`,
       },
       body: { sessionId },
-      url: this.configService.get('STRIPE_CHECKOUT_EXPIRE_URL'),
+      url: this.configService.get('EXPIRE_STRIPE_CHECKOUT_TASK_URL'),
       scheduleAt,
     });
   }
@@ -37,7 +64,7 @@ export class GoogleCloudTaskService extends BaseGcpService {
   /**
    * Creates a scheduled task via Google Cloud Tasks.
    */
-  async createTask<T extends object = object>(props: CreateTaskProps<T>) {
+  async createTask(props: CreateTaskInput) {
     const { body, httpMethod, scheduleAt, url, queueName, headers } = props;
 
     const client = new CloudTasksClient();
