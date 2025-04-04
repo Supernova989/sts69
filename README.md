@@ -49,9 +49,11 @@ do
 done
 ```
 
-#### 2.3 Download the SA kay and get a base64-version of it
+#### 2.3 Download the SA key and get a base64-version of it
 
 ```shell
 base64 < service_account.json
 ```
 
+#### 2.4 Set up Gitflow env
+Variables from [infra.yaml](.github/workflows/infra.yaml) need to be set up in the Gitflow environment.
