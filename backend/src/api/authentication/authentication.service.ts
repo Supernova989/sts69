@@ -1,28 +1,36 @@
-import { HttpException } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare as compareHash } from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
-import { Response } from 'express';
-import { JwtPayload } from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import * as NodeRSA from 'node-rsa';
 import * as crypto from 'node:crypto';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { DynamicConfigService } from '../../dynamic-config/dynamic-config.service';
 import { User } from '../../entities/user';
 import { UserSession } from '../../entities/user-session';
 import { LoggerService } from '../../logger/logger.service';
 import { Environment } from '../../shared/classes/environment';
 import { bcryptHash } from '../../shared/func/bcrypt-hash';
+import { AccessTokenPayload } from '../../shared/types/access-token-payload';
 import { AppCookie } from '../../shared/types/app-cookie';
+import { RefreshTokenPayload } from '../../shared/types/refresh-token-payload';
 import { UserRole } from '../../shared/types/user-role';
 import { AuthRegisterResponseDto } from './dto/auth-register-response.dto';
-import { CreateUserInput, HandleUserSessionInput, RegisterInput } from './typings';
+import {
+  CreateUserInput,
+  GenerateTokensInput,
+  HandleUserSessionInput,
+  LoginInput,
+  RefreshLoginInput,
+  RegisterInput,
+} from './typings';
 
 export class AuthenticationService {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(UserSession) private readonly userSessionRepo: Repository<UserSession>,
     private readonly dynamicConfigService: DynamicConfigService,
@@ -57,29 +65,24 @@ export class AuthenticationService {
     return plainToInstance(AuthRegisterResponseDto, createdUser, { excludeExtraneousValues: true });
   }
 
-  public async login(user: User, response: Response): Promise<void> {
-    const sub = user.id;
+  public async login(input: LoginInput): Promise<void> {
+    const { user, response, ip, userAgent } = input;
 
-    let ses = `s-${crypto.createHash('sha256').update(sub).digest('hex')}`;
+    const userId = user.id;
+
+    let ses = `s-${crypto.createHash('sha256').update(userId).digest('hex')}`;
 
     if (this.configService.get<boolean>('ENABLE_MULTI_SESSION')) {
       ses = `${ses}-${nanoid()}`;
     }
 
-    const payload: JwtPayload = {
-      ses,
-      sub,
-      jti: nanoid(),
-      iss: this.configService.get('JWT_ISSUER'),
-    };
-
-    const accessToken: string = this.jwtService.sign(payload);
-    const refreshToken: string = await this.getRefreshToken(sub, ses);
+    const { accessToken, refreshToken } = await this.generateTokens({ sessionId: ses, userId });
 
     await this.createUserSession({
       sessionId: ses,
       refreshToken,
-      // userId: sub,
+      ip,
+      userAgent,
     });
 
     response.cookie(AppCookie.ACCESS_TOKEN, accessToken, {
@@ -99,12 +102,27 @@ export class AuthenticationService {
     response.status(200).send(plainToInstance(AuthRegisterResponseDto, user, { excludeExtraneousValues: true }));
   }
 
+  private async generateTokens(input: GenerateTokensInput) {
+    const { sessionId, userId } = input;
+
+    const payload: AccessTokenPayload = {
+      ses: sessionId,
+      sub: userId,
+      jti: nanoid(),
+      iss: this.configService.get('JWT_ISSUER'),
+    };
+
+    const accessToken: string = this.jwtService.sign(payload);
+    const refreshToken: string = await this.getRefreshToken(userId, sessionId);
+
+    return { accessToken, refreshToken };
+  }
+
   private async createUserSession(input: HandleUserSessionInput) {
     const { sessionId, refreshToken, userAgent, ip } = input;
     const session = this.userSessionRepo.create({
       id: sessionId,
       refreshTokenHash: crypto.createHash('sha256').update(refreshToken).digest('hex'),
-      // userId,
       userAgent,
       ip,
     });
@@ -120,15 +138,15 @@ export class AuthenticationService {
       .getOne();
 
     if (!user?.password || !(await compareHash(password, user.password))) {
-      throw new HttpException('Wrong credentials', 401);
+      throw new HttpException('Wrong credentials', HttpStatus.UNAUTHORIZED);
     }
     if (!user.active) {
-      throw new HttpException('User is inactive', 401);
+      throw new HttpException('User is inactive', HttpStatus.UNAUTHORIZED);
     }
     return user;
   }
 
-  public async authenticateByJWT(payload: JwtPayload): Promise<User> {
+  public async authenticateByJWT(payload: AccessTokenPayload): Promise<User> {
     const [user, session] = await Promise.all([
       this.userRepo.findOne({ where: { id: payload.sub } }),
       this.userSessionRepo.findOne({ where: { id: payload.ses } }),
@@ -144,6 +162,77 @@ export class AuthenticationService {
       throw new Error('Session expired');
     }
     return user;
+  }
+
+  public async refreshLogin(input: RefreshLoginInput) {
+    const { refreshToken, response, ip, userAgent } = input;
+
+    if (typeof refreshToken !== 'string') {
+      throw new HttpException('Refresh token required', HttpStatus.BAD_REQUEST);
+    }
+
+    const { privateKey } = await this.dynamicConfigService.getConfig('rsa4096');
+    const privateRSA4096 = new NodeRSA(privateKey);
+    const { sub, ses }: RefreshTokenPayload = JSON.parse(privateRSA4096.decrypt(refreshToken, 'utf8'));
+
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const sessionRepo = queryRunner.manager.getRepository(UserSession);
+
+      const session = await sessionRepo
+        .createQueryBuilder('session')
+        .where('session.id = :id', { id: ses })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!session || session.expired) {
+        throw new HttpException('Session expired', HttpStatus.UNAUTHORIZED);
+      }
+
+      const compromised =
+        session.refreshTokenHash !== refreshTokenHash ||
+        (!!session.ip && session.ip !== ip) ||
+        (!!session.userAgent && session.userAgent !== userAgent);
+
+      if (compromised) {
+        await sessionRepo.update({ id: ses }, { expired: true });
+        throw new HttpException('Session compromised', HttpStatus.GONE);
+      }
+
+      const newTokens = await this.generateTokens({ sessionId: ses, userId: sub });
+
+      const newRefreshTokenHash = crypto.createHash('sha256').update(newTokens.refreshToken).digest('hex');
+
+      await sessionRepo.update({ id: ses }, { refreshTokenHash: newRefreshTokenHash });
+
+      await queryRunner.commitTransaction();
+
+      response.cookie(AppCookie.ACCESS_TOKEN, newTokens.accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+      });
+
+      response.cookie(AppCookie.REFRESH_TOKEN, newTokens.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 1000 * 60 * 60 * 24 * 14, // 14 days
+      });
+
+      response.status(204).send();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private async createUser(input: CreateUserInput): Promise<User> {
@@ -163,7 +252,7 @@ export class AuthenticationService {
     } catch (err: any) {
       if (err.code === '23505') {
         // Postgres code for "Duplicate key value" error
-        throw new HttpException('User already exists', 400);
+        throw new HttpException('User already exists', HttpStatus.BAD_REQUEST);
       }
       throw err;
     }
@@ -172,7 +261,7 @@ export class AuthenticationService {
   private async getRefreshToken(sub: string, ses: string): Promise<string> {
     const { publicKey } = await this.dynamicConfigService.getConfig('rsa4096');
     const pubRSA4096 = new NodeRSA(publicKey);
-    const data = { sub, ses, iat: Date.now() };
-    return pubRSA4096.encrypt(data, 'base64');
+    const payload: RefreshTokenPayload = { sub, ses, iat: Date.now() };
+    return pubRSA4096.encrypt(payload, 'base64');
   }
 }

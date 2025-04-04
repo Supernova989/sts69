@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { cloneDeep, difference } from 'lodash';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { Configuration } from '../entities/configuration';
 import { LoggerService } from '../logger/logger.service';
 import { getClassProps } from '../shared/func/get-class-props';
 import { sleep } from '../shared/func/sleep';
 import { ConfigurationCache } from './cache';
+import { UserSession } from '../entities/user-session';
 
 /**
  * Base class for the system configurations stored in DB.
@@ -17,6 +18,7 @@ export class DynamicConfigService {
   private readonly cache = new ConfigurationCache();
 
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(Configuration) private readonly configRepo: Repository<Configuration>,
     private readonly logger: LoggerService
   ) {}
@@ -69,7 +71,7 @@ export class DynamicConfigService {
       throw new Error('Unknown key');
     }
 
-    const queryRunner = this.configRepo.manager.connection.createQueryRunner();
+    const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -120,12 +122,14 @@ export class DynamicConfigService {
       return;
     }
 
-    const queryRunner = this.configRepo.manager.connection.createQueryRunner();
+    const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const existing = await queryRunner.manager.findOne(Configuration, { where: { key: key as string } });
+      const configRepo = queryRunner.manager.getRepository(Configuration);
+
+      const existing = await configRepo.findOne({ where: { key: key as string } });
 
       if (!existing) {
         this.logger.log('SystemConfigService::initConfiguration - Configuration [%s] not found. Inserting default...', [

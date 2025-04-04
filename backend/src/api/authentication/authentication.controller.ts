@@ -1,15 +1,13 @@
-import { Body, Controller, Get, HttpStatus, Param, Post, Res, UseGuards } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
-import { Response } from 'express';
+import { Body, Controller, Get, HttpStatus, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { User } from '../../entities/user';
 import { LocalAuthGuard } from '../../guards/local-auth.guard';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
+import { AppCookie } from '../../shared/types/app-cookie';
 import { AuthenticationService } from './authentication.service';
 import { AuthGetPublicKeyDto } from './dto/auth-get-public-key.dto';
-import { AuthRegisterResponseDto } from './dto/auth-register-response.dto';
 import { AuthRegisterDto } from './dto/auth-register.dto';
-import { AppCookie } from '../../shared/types/app-cookie';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -26,10 +24,17 @@ export class AuthenticationController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Res() response: Response, @CurrentUser() user: User) {
-    return this.authenticationService.login(user, response);
+    return this.authenticationService.login({ user, response });
   }
 
-  // @Public()
+  @Public()
+  @Post('refresh')
+  async refresh(@Req() request: Request, @Res() response: Response) {
+    const refreshToken = request.cookies[AppCookie.REFRESH_TOKEN] as string | undefined;
+    return this.authenticationService.refreshLogin({ refreshToken, response });
+  }
+
+  @Public()
   @Get('public-key/:bits')
   getPublicKey(@Param() dto: AuthGetPublicKeyDto) {
     return this.authenticationService.getPublicKey(dto.bits);

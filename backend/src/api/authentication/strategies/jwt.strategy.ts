@@ -8,6 +8,7 @@ import { User } from '../../../entities/user';
 import { Environment } from '../../../shared/classes/environment';
 import { AuthStrategy } from '../../../shared/types/auth-strategy';
 import { AuthenticationService } from '../authentication.service';
+import { AccessTokenPayload } from '../../../shared/types/access-token-payload';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, AuthStrategy.JWT) {
@@ -26,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, AuthStrategy.JWT) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
+  async validate(payload: AccessTokenPayload): Promise<User> {
     return this.authenticationService.authenticateByJWT(payload);
   }
 }
