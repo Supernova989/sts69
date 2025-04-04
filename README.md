@@ -28,25 +28,30 @@ gcloud iam service-accounts create ci-deployer \
 PROJECT_ID=your-project-id
 SA_EMAIL="ci-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
 
-for ROLE in \
-  roles/artifactregistry.writer \
-  roles/cloudfunctions.developer \
-  roles/run.admin \
-  roles/cloudtasks.admin \
-  roles/editor \
-  roles/secretmanager.admin \
-  roles/iam.serviceAccountUser \
-  roles/serviceusage.serviceUsageAdmin \
-  roles/storage.admin \
-  roles/viewer \
-  roles/compute.loadBalancerAdmin \                # for managing SSL certificates
-  roles/compute.networkAdmin \                     # for creating VPCs and subnets
-  roles/cloudbuild.builds.editor                   # for Cloud Build
-do
+ROLES=(
+  roles/artifactregistry.writer
+  roles/cloudfunctions.developer
+  roles/run.admin
+  roles/cloudtasks.admin
+  roles/editor
+  roles/secretmanager.admin
+  roles/iam.serviceAccountUser
+  roles/serviceusage.serviceUsageAdmin
+  roles/storage.admin
+  roles/viewer
+  roles/compute.loadBalancerAdmin               # for managing SSL certificates
+  roles/compute.networkAdmin                    # for creating VPCs and subnets
+  roles/cloudbuild.builds.editor                # for Cloud Build
+)
+ 
+for ROLE in "${ROLES[@]}"; do
+  echo "\nAssigning role $ROLE to $SA_EMAIL\n"
+
   gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SA_EMAIL" \
     --role="$ROLE"
 done
+
 ```
 
 #### 2.3 Download the SA key and get a base64-version of it
