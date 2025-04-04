@@ -11,3 +11,11 @@ export interface CreateUserInput {
   firstname?: string;
   lastname?: string;
 }
+
+export interface HandleUserSessionInput {
+  sessionId: string;
+  refreshToken: string;
+  // userId: string;
+  ip?: string;
+  userAgent?: string;
+}

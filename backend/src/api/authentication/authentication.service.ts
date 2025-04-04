@@ -6,24 +6,25 @@ import { compare as compareHash } from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
 import { Response } from 'express';
 import { JwtPayload } from 'jsonwebtoken';
-import * as moment from 'moment';
 import { nanoid } from 'nanoid';
 import * as NodeRSA from 'node-rsa';
 import * as crypto from 'node:crypto';
 import { Repository } from 'typeorm';
 import { DynamicConfigService } from '../../dynamic-config/dynamic-config.service';
 import { User } from '../../entities/user';
+import { UserSession } from '../../entities/user-session';
 import { LoggerService } from '../../logger/logger.service';
 import { Environment } from '../../shared/classes/environment';
 import { bcryptHash } from '../../shared/func/bcrypt-hash';
 import { AppCookie } from '../../shared/types/app-cookie';
 import { UserRole } from '../../shared/types/user-role';
 import { AuthRegisterResponseDto } from './dto/auth-register-response.dto';
-import { CreateUserInput, RegisterInput } from './typings';
+import { CreateUserInput, HandleUserSessionInput, RegisterInput } from './typings';
 
 export class AuthenticationService {
   constructor(
-    @InjectRepository(User) private readonly userRepository: Repository<User>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(UserSession) private readonly userSessionRepo: Repository<UserSession>,
     private readonly dynamicConfigService: DynamicConfigService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService<Environment, true>,
@@ -62,7 +63,7 @@ export class AuthenticationService {
     let ses = `s-${crypto.createHash('sha256').update(sub).digest('hex')}`;
 
     if (this.configService.get<boolean>('ENABLE_MULTI_SESSION')) {
-      ses = `${ses}-${this.getNow()}`;
+      ses = `${ses}-${nanoid()}`;
     }
 
     const payload: JwtPayload = {
@@ -72,9 +73,14 @@ export class AuthenticationService {
       iss: this.configService.get('JWT_ISSUER'),
     };
 
-    await this.handleUserSession();
     const accessToken: string = this.jwtService.sign(payload);
     const refreshToken: string = await this.getRefreshToken(sub, ses);
+
+    await this.createUserSession({
+      sessionId: ses,
+      refreshToken,
+      // userId: sub,
+    });
 
     response.cookie(AppCookie.ACCESS_TOKEN, accessToken, {
       httpOnly: true,
@@ -93,12 +99,21 @@ export class AuthenticationService {
     response.status(200).send(plainToInstance(AuthRegisterResponseDto, user, { excludeExtraneousValues: true }));
   }
 
-  private async handleUserSession() {
-    // TODO implement
+  private async createUserSession(input: HandleUserSessionInput) {
+    const { sessionId, refreshToken, userAgent, ip } = input;
+    const session = this.userSessionRepo.create({
+      id: sessionId,
+      refreshTokenHash: crypto.createHash('sha256').update(refreshToken).digest('hex'),
+      // userId,
+      userAgent,
+      ip,
+    });
+
+    return this.userSessionRepo.save(session);
   }
 
   public async authenticateByCredentials(email: string, password: string): Promise<User> {
-    const user = await this.userRepository
+    const user = await this.userRepo
       .createQueryBuilder('user')
       .addSelect('user.password')
       .where('user.email = :email', { email })
@@ -114,12 +129,19 @@ export class AuthenticationService {
   }
 
   public async authenticateByJWT(payload: JwtPayload): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id: payload.sub } });
+    const [user, session] = await Promise.all([
+      this.userRepo.findOne({ where: { id: payload.sub } }),
+      this.userSessionRepo.findOne({ where: { id: payload.ses } }),
+    ]);
+
     if (!user) {
       throw new Error('User does not exist');
     }
     if (!user.active) {
       throw new Error('User is inactive');
+    }
+    if (!session || session.expired) {
+      throw new Error('Session expired');
     }
     return user;
   }
@@ -128,7 +150,7 @@ export class AuthenticationService {
     try {
       const { email, plainPassword, firstname, lastname } = input;
 
-      const user = this.userRepository.create({
+      const user = this.userRepo.create({
         email,
         password: bcryptHash(plainPassword),
         firstname: firstname ?? null,
@@ -137,9 +159,10 @@ export class AuthenticationService {
         active: false,
       });
 
-      return await this.userRepository.save(user);
+      return await this.userRepo.save(user);
     } catch (err: any) {
       if (err.code === '23505') {
+        // Postgres code for "Duplicate key value" error
         throw new HttpException('User already exists', 400);
       }
       throw err;
@@ -151,9 +174,5 @@ export class AuthenticationService {
     const pubRSA4096 = new NodeRSA(publicKey);
     const data = { sub, ses, iat: Date.now() };
     return pubRSA4096.encrypt(data, 'base64');
-  }
-
-  private getNow() {
-    return moment().unix();
   }
 }
