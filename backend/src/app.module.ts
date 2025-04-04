@@ -12,6 +12,7 @@ import { LoggerModule } from './logger/logger.module';
 import { Environment } from './shared/classes/environment';
 import { getEnvValidator } from './shared/func/get-env-validator';
 import { StripeModule } from './stripe/stripe.module';
+import { DynamicConfigModule } from './dynamic-config/dynamic-config.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StripeModule } from './stripe/stripe.module';
     DatabaseModule,
     StripeModule,
     GoogleCloudPlatformModule,
+    DynamicConfigModule,
     AuthenticationModule,
     SeatsModule,
   ],

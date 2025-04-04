@@ -1,15 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 import { Strategy } from 'passport-local';
 import { LoggerService } from '../../../logger/logger.service';
 import { AuthStrategy } from '../../../shared/types/auth-strategy';
 import { AuthenticationService } from '../authentication.service';
 
-const strategy = AuthStrategy.JWT;
+const strategy = AuthStrategy.LOCAL;
 
 /**
- * Local strategy.
- *
+ * Strategy used to authenticate the user by credentials.
  */
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy, strategy) {
@@ -20,19 +20,18 @@ export class LocalStrategy extends PassportStrategy(Strategy, strategy) {
     super();
   }
 
-  override async authenticate(request: unknown) {
-    const { auth, password } = request as { auth: string; password: string };
-    this.logger.debug('Authenticating %s...', [auth], { src: 'LocalStrategy::authenticate' });
+  override async authenticate(request: Request) {
+    const { auth, password } = request.body;
+    this.logger.debug('Authenticating %s', [auth], { src: 'LocalStrategy::authenticate' });
     try {
       const user = await this.service.authenticateByCredentials(auth, password);
       this.success(user);
-    } catch (e) {
-      this.fail(e);
+    } catch (err) {
+      this.error(err);
     }
   }
 
-  validate(args: any) {
-    console.log('here - validate >>>>>', args);
-    return undefined;
+  override validate() {
+    throw new NotImplementedException();
   }
 }

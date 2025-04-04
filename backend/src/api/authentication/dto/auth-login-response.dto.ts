@@ -1,7 +1,7 @@
 import { Expose } from 'class-transformer';
 import { UserRole } from '../../../shared/types/user-role';
 
-export class AuthRegisterResponseDto {
+export class AuthLoginResponseDto {
   @Expose()
   email: string;
 

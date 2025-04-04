@@ -1,10 +1,25 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max } from 'class-validator';
 import { toBoolean } from '../func/to-boolean';
 import { AppStage } from '../types/app-stage';
 import { LoggerLevel } from '../types/logger-level';
 
 export class Environment {
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @IsOptional()
+  PORT?: number;
+
+  @Transform((v) =>
+    v.value
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter((v) => !!v)
+  )
+  @IsString({ each: true })
+  @IsArray()
+  readonly CORS_DOMAINS: string[];
+
   /**
    * Stage where the app runs - locally, remotely in the dev stage or in production.
    */
@@ -31,6 +46,15 @@ export class Environment {
   readonly JWT_ISSUER: string;
 
   /**
+   * Expiration time for JWT (minutes)
+   */
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Max(60)
+  @IsOptional()
+  readonly JWT_EXPIRE_TIME: number = 15;
+
+  /**
    * Connection string for PostgreSQL.
    */
   @IsString()
@@ -54,6 +78,14 @@ export class Environment {
   @IsEnum(LoggerLevel)
   @IsOptional()
   readonly LOGGER_LEVEL?: LoggerLevel;
+
+  /**
+   * Enables multi session for users. If on, additional logins won't kick out the user.
+   */
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
+  @IsOptional()
+  readonly ENABLE_MULTI_SESSION?: boolean = true;
 
   /**
    * Uses the Google Cloud Platform logger format.

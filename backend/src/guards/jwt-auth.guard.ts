@@ -1,10 +1,9 @@
-import { ExecutionContext, HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthStrategy } from 'src/shared/types/auth-strategy';
 import { LoggerService } from '../logger/logger.service';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
-import { User } from '../entities/user';
 
 /**
  * Authenticates user by the request metadata.
@@ -28,13 +27,12 @@ export class JwtAuthGuard extends AuthGuard(AuthStrategy.JWT) {
     return super.canActivate(ctx);
   }
 
-  override handleRequest(err: any, user: any) {
-    if (err) {
-      this.logger.log('JwtAuthGuard::handleRequest - error 401 - %o', err);
-      throw new HttpException(err.message, 401);
+  override handleRequest(err: any, user: any, info) {
+    if (err || info) {
+      throw new UnauthorizedException((err || info).message);
     }
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('No user authenticated');
     }
     return user;
   }

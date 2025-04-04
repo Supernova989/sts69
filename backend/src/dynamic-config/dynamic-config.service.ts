@@ -17,7 +17,7 @@ export class DynamicConfigService {
   private readonly cache = new ConfigurationCache();
 
   constructor(
-    @InjectRepository(Configuration) private readonly cfgRepository: Repository<Configuration>,
+    @InjectRepository(Configuration) private readonly configRepo: Repository<Configuration>,
     private readonly logger: LoggerService
   ) {}
 
@@ -25,7 +25,7 @@ export class DynamicConfigService {
    * Finds dynamic-config documents in DB and saves them to the cache.
    */
   async reload() {
-    const configs = await this.cfgRepository.find({});
+    const configs = await this.configRepo.find({});
     for (const { key, value } of configs) {
       this.cache[key] = value;
     }
@@ -69,35 +69,42 @@ export class DynamicConfigService {
       throw new Error('Unknown key');
     }
 
-    this.cache[key] = value;
-
-    const payload: DeepPartial<Configuration> = {
-      key: key as string,
-      value: value as Record<string, any>,
-      updatedBy: updatedBy ?? 'system',
-    };
+    const queryRunner = this.configRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      const existing = await this.cfgRepository.findOne({ where: { key: key as string } });
+      const configRepo = queryRunner.manager.getRepository(Configuration);
+      const existing = await configRepo.findOne({
+        where: { key: key as string },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const payload: DeepPartial<Configuration> = {
+        key: key as string,
+        value: value as Record<string, any>,
+        updatedBy: updatedBy ?? 'system',
+      };
 
       if (!existing) {
-        await this.cfgRepository.save(payload);
+        await configRepo.save(payload);
       } else {
-        await this.cfgRepository.update(
-          { id: existing.id },
-          {
-            ...payload,
-            //  version: (existing.version ?? 0) + 1,
-          }
-        );
+        await configRepo.update({ id: existing.id }, payload);
       }
+
+      await queryRunner.commitTransaction();
+      this.cache[key] = value;
     } catch (err: any) {
+      await queryRunner.rollbackTransaction();
       this.logger.error('SystemConfigService::setConfig - key: %s - %s', [key, err.message]);
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async initConfigurations(initial: ConfigurationCache): Promise<void> {
-    const keys = getClassProps(this.cache.constructor) as (keyof ConfigurationCache)[];
+    const keys = getClassProps(ConfigurationCache) as (keyof ConfigurationCache)[];
 
     const promises: Promise<void>[] = [];
     for (const key of keys) {
@@ -106,38 +113,54 @@ export class DynamicConfigService {
     await Promise.all(promises);
   }
 
-  private async initConfiguration(key: keyof ConfigurationCache, initial: ConfigurationCache) {
-    const fnStart = performance.now();
-
+  private async initConfiguration(key: keyof ConfigurationCache, initial: ConfigurationCache): Promise<void> {
     const defaultValue = initial[key];
     if (!defaultValue) {
       this.logger.error('SystemConfigService::initConfiguration - Configuration [%s] is missing default value!', [key]);
       return;
     }
-    const cfg = await this.getConfig(key, false);
-    if (!cfg) {
-      this.logger.log('SystemConfigService::initConfiguration - Configuration [%s] is not found. Initializing...', [
-        key,
-      ]);
-      await this.setConfig(key, defaultValue);
 
-      const fnEnd = performance.now();
-      this.logger.debug('SystemConfigService::initConfiguration - init [%s] done in %s', [
-        key,
-        ((fnEnd - fnStart) / 1000).toFixed(3),
-      ]);
-      return;
-    }
-    const missingKeys = difference(Object.keys(defaultValue), Object.keys(cfg));
-    for (const mk of missingKeys) {
-      if (cfg[mk]) {
-        return;
+    const queryRunner = this.configRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const existing = await queryRunner.manager.findOne(Configuration, { where: { key: key as string } });
+
+      if (!existing) {
+        this.logger.log('SystemConfigService::initConfiguration - Configuration [%s] not found. Inserting default...', [
+          key,
+        ]);
+        await queryRunner.manager.save(Configuration, {
+          key: key as string,
+          value: defaultValue,
+          updatedBy: 'system',
+        });
+      } else {
+        const missingKeys = difference(Object.keys(defaultValue), Object.keys(existing.value));
+        if (missingKeys.length > 0) {
+          const updatedValue = { ...existing.value, ...defaultValue };
+          await queryRunner.manager.update(
+            Configuration,
+            { id: existing.id },
+            {
+              value: updatedValue as Record<string, any>,
+              updatedBy: 'system',
+            }
+          );
+          this.logger.log('SystemConfigService::initConfiguration - Configuration [%s] updated with missing keys: %s', [
+            key,
+            missingKeys.join(', '),
+          ]);
+        }
       }
-      await this.setConfig(key, { ...cfg, [mk]: defaultValue[mk] });
-      this.logger.log(
-        'SystemConfigService::initConfiguration - Configuration [%s] is missing property [%s]. Adding...',
-        [key, mk]
-      );
+
+      await queryRunner.commitTransaction();
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('SystemConfigService::initConfiguration - Failed for key [%s]: %s', [key, err.message]);
+    } finally {
+      await queryRunner.release();
     }
   }
 }
