@@ -49,9 +49,9 @@ export class AuthenticationService {
       throw new HttpException('Registration failed', 400);
     }
 
-    const createdUser: any = await this.createUser({ email, plainPassword, firstname, lastname });
+    const createdUser = await this.createUser({ email, plainPassword, firstname, lastname });
 
-    this.logger.log('Registered user [%s]', [createdUser.email]);
+    this.logger.log('New user has registered - [%s]', [createdUser.email]);
 
     return plainToInstance(AuthRegisterResponseDto, createdUser, { excludeExtraneousValues: true });
   }
@@ -72,6 +72,7 @@ export class AuthenticationService {
       iss: this.configService.get('JWT_ISSUER'),
     };
 
+    await this.handleUserSession();
     const accessToken: string = this.jwtService.sign(payload);
     const refreshToken: string = await this.getRefreshToken(sub, ses);
 
@@ -90,6 +91,10 @@ export class AuthenticationService {
     });
 
     response.status(200).send(plainToInstance(AuthRegisterResponseDto, user, { excludeExtraneousValues: true }));
+  }
+
+  private async handleUserSession() {
+    // TODO implement
   }
 
   public async authenticateByCredentials(email: string, password: string): Promise<User> {

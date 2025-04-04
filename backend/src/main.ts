@@ -26,7 +26,6 @@ async function bootstrap() {
   const dcs = app.get(DynamicConfigService);
   await dcs.reload();
   await dcs.initConfigurations(defaultConfig);
-  await dcs.setConfig('stripe', { enable: true });
 
   // Stripe
   const stripeService = app.get(StripeService);
