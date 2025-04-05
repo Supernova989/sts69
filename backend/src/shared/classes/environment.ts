@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, Max } from 'class-validator';
+import { safeBase64ToObject } from '../func/safe-base64-to-object';
 import { toBoolean } from '../func/to-boolean';
 import { AppStage } from '../types/app-stage';
 import { LoggerLevel } from '../types/logger-level';
@@ -73,6 +74,19 @@ export class Environment {
   readonly GCP_PROJECT_ID: string;
 
   /**
+   * Debug: default credentials for Google Cloud Tasks.
+   */
+  @Transform(({ value }) => safeBase64ToObject(value))
+  @IsObject()
+  @IsOptional()
+  readonly GOOGLE_CLOUD_TASKS_CREDENTIALS?: string;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @IsOptional()
+  readonly GOOGLE_CLOUD_TASKS_TIMEOUT: number = 300;
+
+  /**
    * Defines the maximum log severity.
    */
   @IsEnum(LoggerLevel)
@@ -132,10 +146,4 @@ export class Environment {
    */
   @IsString()
   readonly SEND_EMAIL_TASK_URL: string;
-
-  /**
-   * Service account email for Cloud Tasks.
-   */
-  @IsString()
-  readonly TASKS_SA_EMAIL: string;
 }

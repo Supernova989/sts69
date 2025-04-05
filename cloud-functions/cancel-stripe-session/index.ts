@@ -8,20 +8,27 @@ const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!, {
 
 http('handler', async (req: Request, res: Response) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).send();
   }
 
   const { sessionId } = req.body;
 
   if (typeof sessionId !== 'string') {
-    return res.status(400).json({ error: 'Missing or invalid sessionId' });
+    return res.status(400).send('Missing or invalid sessionId');
   }
 
   try {
-    await stripe.checkout.sessions.expire(sessionId);
-    return res.status(200).json({ message: `Session ${sessionId} cancelled` });
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (!session) {
+      return res.status(400).send('Session not found');
+    }
+    if (session.status === 'open') {
+      await stripe.checkout.sessions.expire(sessionId);
+    }
+
+    return res.status(200).send('ok');
   } catch (err: any) {
     console.error('Stripe error:', err.message);
-    return res.status(500).json({ error: 'Failed to cancel session' });
+    return res.status(500).send('Failed to cancel session');
   }
 });

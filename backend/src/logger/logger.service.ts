@@ -74,8 +74,12 @@ export class LoggerService {
     this.logger?.verbose(message, ...meta);
   }
 
-  alert(message: string, ...meta: any[]): void {
-    this.logger?.log('alert' satisfies `${LoggerLevel}`, message, ...meta);
+  alert(message: any, args?: any[], metadata?: MetaObject): void {
+    this.logger?.alert({
+      message,
+      metadata,
+      splat: args,
+    });
   }
 
   notice(message: string, ...meta: any[]): void {

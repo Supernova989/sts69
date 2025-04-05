@@ -49,14 +49,18 @@ jobs:
             --region=${{ vars.GCP_REGION }} \
             --project=${{ vars.GCP_PROJECT_ID }} \
             --allow-unauthenticated \
-            --set-env-vars=GCP_REGION=${{ vars.GCP_REGION }} \
-            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }} \
-            --set-env-vars=STRIPE_PUBLIC_KEY=${{ vars.STRIPE_PUBLIC_KEY }} \
-            --set-env-vars=STRIPE_CHECKOUT_SUCCESS_URL=${{ vars.STRIPE_CHECKOUT_SUCCESS_URL }} \
-            --set-env-vars=EXPIRE_STRIPE_CHECKOUT_TASK_URL=${{ vars.EXPIRE_STRIPE_CHECKOUT_TASK_URL }} \
-            --set-env-vars=LOGGER_GCP_FORMAT="true" \
-            --set-env-vars=STAGE=dev \
-            --set-env-vars=TASKS_SA_EMAIL=${{ secrets.GH_DEPLOYER_SA_EMAIL }} \
+            --service-account=cloud-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --update-env-vars=GCP_REGION=${{ vars.GCP_REGION }} \
+            --update-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }} \
+            --update-env-vars=STRIPE_PUBLIC_KEY=${{ vars.STRIPE_PUBLIC_KEY }} \
+            --update-env-vars=STRIPE_CHECKOUT_SUCCESS_URL=${{ vars.STRIPE_CHECKOUT_SUCCESS_URL }} \
+            --update-env-vars=EXPIRE_STRIPE_CHECKOUT_TASK_URL=${{ vars.EXPIRE_STRIPE_CHECKOUT_TASK_URL }} \
+            --update-env-vars=SEND_EMAIL_TASK_URL=${{ vars.SEND_EMAIL_TASK_URL }} \
+            --update-env-vars=CORS_DOMAINS=${{ vars.CORS_DOMAINS }} \
+            --update-env-vars=LOGGER_GCP_FORMAT="true" \
+            --update-env-vars=STAGE=dev \
+            --update-secrets=JWT_SECRET=JWT_SECRET:latest \
+            --update-secrets=JWT_ISSUER=JWT_ISSUER:latest \
             --update-secrets=STRIPE_PRIVATE_KEY=STRIPE_PRIVATE_KEY:latest \
             --update-secrets=DATABASE_URL=DATABASE_URL:latest 
 
