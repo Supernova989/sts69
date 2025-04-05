@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as moment from 'moment';
 import stripe from 'stripe';
-import { GoogleCloudTaskService } from '../gcp/task.service';
 import { LoggerService } from '../logger/logger.service';
 import { Environment } from '../shared/classes/environment';
 import { ReservationStatus } from '../shared/types/reservation-status';
@@ -15,36 +14,9 @@ export class StripeService {
   private stripe: stripe;
 
   constructor(
-    private readonly taskService: GoogleCloudTaskService,
     private readonly configService: ConfigService<Environment, true>,
     private readonly logger: LoggerService
-  ) {
-    setTimeout(async () => {
-      const s = await this.createCheckoutSession({
-        userId: 'user 123',
-        reservation: {
-          id: 'res-1',
-          status: ReservationStatus.PENDING,
-          reservedUntil: moment().add(1, 'hour').toDate(),
-          seats: [
-            //
-            { id: 'id1', row: 'row1', label: 'VIP-1' } as any,
-            { id: 'id2', row: 'row1', label: 'VIP-2' } as any,
-          ],
-          event: {
-            name: 'some event 1',
-          } as any,
-        } as any,
-      });
-
-      await this.taskService.scheduleStripeSessionExpiration({
-        sessionId: s.id,
-        scheduleAt: moment().add(2, 'minutes').unix(),
-      });
-
-      console.log('->', s.url);
-    }, 1000);
-  }
+  ) {}
 
   /**
    * Init the client.
@@ -77,7 +49,7 @@ export class StripeService {
       price_data: {
         currency: CURRENCY,
         product_data: {
-          name: `${reservation.event.name}. Row ${seat.row}, seat ${seat.label}`,
+          name: `${reservation.event.name}: row ${seat.row}, seat ${seat.label}`,
         },
         unit_amount: 1000,
       },
@@ -101,7 +73,7 @@ export class StripeService {
       mode: 'payment',
       metadata,
       // minimise the session expiration time
-      // expires_at: moment().add(30, 'minutes').add(5, 'seconds').unix(),
+      expires_at: moment().add(45, 'minutes').unix(),
     });
 
     this.logger.log('Checkout session %s created', [session.id], { src: 'StripeService::createCheckoutSession' });

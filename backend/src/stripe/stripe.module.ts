@@ -3,7 +3,6 @@ import { GoogleCloudPlatformModule } from '../gcp/gcp.module';
 import { StripeService } from './stripe.service';
 
 @Module({
-  imports: [GoogleCloudPlatformModule],
   providers: [StripeService],
   exports: [StripeService],
 })
