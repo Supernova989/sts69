@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { SignOptions } from 'jsonwebtoken';
 import { Environment } from '../../shared/classes/environment';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';

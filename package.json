@@ -1,0 +1,20 @@
+{
+  "description": "Monorepo-scoped package for git hooks",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "workspaces": ["frontend", "backend"],
+  "devDependencies": {
+    "lint-staged": "15.5.0",
+    "husky": "9.1.7"
+  },
+  "lint-staged": {
+    "backend/**/*.{js,ts,json,md}": [
+      "yarn workspace backend lint"
+    ],
+    "frontend/**/*.{js,ts,tsx,json,css,md}": [
+      "yarn workspace frontend lint"
+    ]
+  }
+}
