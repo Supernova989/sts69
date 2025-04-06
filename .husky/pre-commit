@@ -1,1 +1,2 @@
-cd frontend && npx lint-staged
+(cd "$PWD/frontend" && npx lint-staged)
+(cd "$PWD/backend" && npx lint-staged)

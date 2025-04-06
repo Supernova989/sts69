@@ -1,0 +1,10 @@
+{
+  "description": "Monorepo-scoped package for git hooks",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7"
+  }
+}
