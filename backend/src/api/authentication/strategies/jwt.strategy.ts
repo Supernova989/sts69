@@ -2,13 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
-import { JwtPayload } from 'jsonwebtoken';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../../../entities/user';
 import { Environment } from '../../../shared/classes/environment';
+import { AccessTokenPayload } from '../../../shared/types/access-token-payload';
 import { AuthStrategy } from '../../../shared/types/auth-strategy';
 import { AuthenticationService } from '../authentication.service';
-import { AccessTokenPayload } from '../../../shared/types/access-token-payload';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, AuthStrategy.JWT) {

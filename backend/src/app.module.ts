@@ -5,6 +5,7 @@ import { AuthenticationModule } from './api/authentication/authentication.module
 import { SeatsModule } from './api/seats/seats.module';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { DynamicConfigModule } from './dynamic-config/dynamic-config.module';
 import { GoogleCloudPlatformModule } from './gcp/gcp.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RoleGuard } from './guards/role.guard';
@@ -12,7 +13,6 @@ import { LoggerModule } from './logger/logger.module';
 import { Environment } from './shared/classes/environment';
 import { getEnvValidator } from './shared/func/get-env-validator';
 import { StripeModule } from './stripe/stripe.module';
-import { DynamicConfigModule } from './dynamic-config/dynamic-config.module';
 
 @Module({
   imports: [

@@ -7,7 +7,6 @@ import { LoggerService } from '../logger/logger.service';
 import { getClassProps } from '../shared/func/get-class-props';
 import { sleep } from '../shared/func/sleep';
 import { ConfigurationCache } from './cache';
-import { UserSession } from '../entities/user-session';
 
 /**
  * Base class for the system configurations stored in DB.
